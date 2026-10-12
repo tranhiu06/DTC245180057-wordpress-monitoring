@@ -1,0 +1,5 @@
+prometheus/data/
+nginx/ssl/
+*.log
+.DS_Store
+.env
