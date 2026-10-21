@@ -36,6 +36,8 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: wp_phpmyadmin
     restart: always
+    ports:
+      - "8080:80"
     environment:
       PMA_HOST: db
       MYSQL_ROOT_PASSWORD: StrongRootPassword2026!
@@ -70,9 +72,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - wordpress_data:/var/www/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - frontend-net
     depends_on:
@@ -81,12 +81,36 @@ services:
   prometheus:
     image: prom/prometheus:v2.45.0
     container_name: wp_prometheus
-    user: "root"
+    restart: always
+    ports:
+      - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - monitoring-net
+
+  loki:
+    image: grafana/loki:2.8.2
+    container_name: wp_loki
     restart: always
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - monitoring-net
+
+  promtail:
+    image: grafana/promtail:2.8.2
+    container_name: wp_promtail
+    restart: always
+    volumes:
+      - ./promtail/promtail-config.yaml:/etc/promtail/promtail-config.yaml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring-net
 
   grafana:
     image: grafana/grafana:10.0.0
@@ -98,31 +122,3 @@ services:
       - grafana_data:/var/lib/grafana
     networks:
       - monitoring-net
-    depends_on:
-      - prometheus
-      - loki
-
-  loki:
-    image: grafana/loki:2.8.2
-    container_name: wp_loki
-    restart: always
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki_data:/tmp/loki
-    networks:
-      - monitoring-net
-
-  promtail:
-    image: grafana/promtail:2.8.2
-    container_name: wp_promtail
-    restart: always
-    volumes:
-      - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/config.yml
-    networks:
-      - monitoring-net
-    depends_on:
-      - loki
